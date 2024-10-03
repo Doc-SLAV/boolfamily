@@ -25,7 +25,7 @@ Before you begin, make sure you have the following installed:
   open bot game -> right click -> inspect -> application -> session storage -> tgwebapp -> query_id / user_id
 ```
 
-2. open sessions.txt file, then paste your query/user id telegram
+2. open sesi.txt file, then paste your query/user id telegram
 
 ```bash
   query_id : query_id=xx&user=xx&auth_date=xx&hash=xx
