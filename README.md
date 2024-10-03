@@ -1,4 +1,4 @@
-[![Static Badge](https://img.shields.io/badge/Telegram-Bot%20Link-Link?style=for-the-badge&logo=Telegram&logoColor=white&logoSize=auto&color=blue)](https://t.me/fintopio/wallet?startapp=reflink-reflink_dr6rbXM5Cz5iM9d7-)
+[![Static Badge](https://img.shields.io/badge/Telegram-Bot%20Link-Link?style=for-the-badge&logo=Telegram&logoColor=white&logoSize=auto&color=blue)](https://t.me/boolfamily_bot/join?startapp=7E1CH)
 
 ## Recommendation before use
 
@@ -9,10 +9,10 @@
 |-----------------------------------------------------------|:---------:|
 | Multithreading                                            |     ✅     |
 | Registration in bot                                       |     ✅     |
-| Auto-claim farm                                           |     ✅     |
+| Auto-claim                                                |     ✅     |
 | Auto-tasks                                                |     ✅     |
-| Daily rewards                                             |     ✅     |
-| Auto-play for diamond game                                |     ✅     |
+| Daily Login                                               |     ✅     |
+| Auto-Staking                                              |     ✅     |
 
 
 ## Prerequisites
@@ -33,12 +33,12 @@ Before you begin, make sure you have the following installed:
 ```
 
 ## Installation
-You can download the [**repository**](https://github.com/Doc-SLAV/FintopioBot/archive/refs/heads/main.zip) by cloning it to your system and installing the necessary dependencies:
+You can download the [**repository**](https://github.com/Doc-SLAV/boolfamily/archive/refs/heads/main.zip) by cloning it to your system and installing the necessary dependencies:
 
 # Linux manual installation
 ```shell
-git clone https://github.com/Doc-SLAV/FintopioBot
-cd FintopioBot
+git clone https://github.com/Doc-SLAV/boolfamily.git
+cd boolfamily
 python3 -m venv venv
 source venv/bin/activate
 pip3 install -r requirements.txt
@@ -48,8 +48,8 @@ python3 bot.py
 
 # Windows manual installation
 ```shell
-git clone https://github.com/Doc-SLAV/FintopioBot
-cd FintopioBot
+git clone https://github.com/Doc-SLAV/boolfamily.git
+cd boolfamily
 python -m venv venv
 venv\Scripts\activate
 pip install -r requirements.txt
