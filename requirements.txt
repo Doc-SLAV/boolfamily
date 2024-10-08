@@ -2,4 +2,3 @@ colorama
 aiohttp
 requests
 asyncio
-datetime
