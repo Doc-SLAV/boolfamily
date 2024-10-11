@@ -29,7 +29,6 @@ Before you begin, make sure you have the following installed:
 
 ```bash
   query_id : query_id=xx&user=xx&auth_date=xx&hash=xx
-  user_id : user_id=xx&user=xx&auth_date=xx&hash=xx
 ```
 
 ## Installation
