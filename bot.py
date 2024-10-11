@@ -19,7 +19,7 @@ API_ENDPOINTS = {
     "daily_list": f"{BASE_URL}/assignment/daily/list",
     "repeat_assignment": f"{BASE_URL}/assignment/daily/repeat-assignment",
     "perform_task": f"{BASE_URL}/assignment/do",
-    "daily_do": f"{BASE_URL}/assignment/daily/do",
+    "daily_do": f"{BASE_URL}/assignment/daily/assignment",
     "stake_do": f"{BASE_URL}/stake/do",
     "staking_devices": f"{MINIAPP_BASE_URL}/user/vote:devices",
     "user_staked_devices": f"{MINIAPP_BASE_URL}/user/user-vote-devices"
@@ -124,6 +124,7 @@ async def check_daily_tasks(session_data, http_client, username):
     logging.info(f"Checking daily tasks for user: {username}")
     payload = {"data": session_data["data"], "hash": session_data["hash"]}
 
+    # Check daily tasks from daily_list
     daily_response = await make_request(API_ENDPOINTS["daily_list"], http_client, payload=payload, headers=HEADERS["default"])
     if daily_response and daily_response.get("code") == 200:
         daily_tasks = daily_response.get('data', [])
@@ -143,6 +144,7 @@ async def check_daily_tasks(session_data, http_client, username):
     else:
         logging.error("Failed to fetch tasks from daily list.")
 
+    # Check repeat assignment tasks
     repeat_response = await make_request(API_ENDPOINTS["repeat_assignment"], http_client, payload=payload, headers=HEADERS["default"])
     if repeat_response and repeat_response.get("code") == 200:
         repeat_tasks = repeat_response.get('data', [])
