@@ -4,9 +4,9 @@ import urllib.parse
 import logging
 import json
 import random
+import sys
 from datetime import datetime, timedelta
 
-# Mengatur level logging ke INFO
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 BASE_URL = "https://bot-api.bool.network/bool-tg-interface"
@@ -44,12 +44,10 @@ async def make_request(url, http_client, method="POST", payload=None, headers=No
             log_full_request = True
             if any(endpoint in url for endpoint in ["assignment/do", "assignment/daily/list", "assignment/daily/repeat-assignment"]):
                 log_full_request = False
-
             if log_full_request:
                 logging.debug(f"Making request to {url} with payload: {payload}")
             else:
                 logging.debug(f"Making request to {url}")
-
             if method == "POST":
                 async with http_client.post(url, json=payload, headers=headers) as response:
                     response.raise_for_status()
@@ -80,21 +78,10 @@ async def make_request(url, http_client, method="POST", payload=None, headers=No
                         if log_full_request:
                             logging.debug(f"Received response: {text_response}")
                         return text_response
-        except aiohttp.ContentTypeError as e:
-            logging.error(f"Error parsing response from {url}: {e}")
-            return None
-        except aiohttp.ClientResponseError as e:
-            if e.status == 500:
-                retries += 1
-                logging.error(f"500 Server Error: Retrying {retries}/{max_retries} after {delay} seconds...")
-                await asyncio.sleep(delay)
-            else:
-                logging.error(f"Error making request to {url}: {e}")
-                return None
         except Exception as e:
             logging.error(f"Error making request to {url}: {e}")
-            return None
-    logging.error(f"Failed to complete request after {max_retries} retries.")
+            retries += 1
+            await asyncio.sleep(delay)
     return None
 
 def load_session_data(file_path):
@@ -133,21 +120,9 @@ async def visit_rum(http_client):
     await make_request(rum_url, http_client, method="POST", payload=rum_payload, expect_json=False)
     logging.info("Visited RUM")
 
-async def get_user_info(session_data, http_client):
-    payload = {"data": session_data["data"], "hash": session_data["hash"]}
-    user_response = await make_request(API_ENDPOINTS["user_strict"], http_client, payload=payload, headers=HEADERS["default"])
-    if user_response and user_response.get("code") == 200:
-        return user_response.get('data', {})
-    else:
-        logging.error("Failed to fetch user information.")
-        return None
-
 async def check_daily_tasks(session_data, http_client, username):
     logging.info(f"Checking daily tasks for user: {username}")
     payload = {"data": session_data["data"], "hash": session_data["hash"]}
-
-    # Melakukan preflight OPTIONS request sebelum daily_list
-    await make_request(API_ENDPOINTS["daily_list"], http_client, method="OPTIONS", headers=HEADERS["options"])
 
     daily_response = await make_request(API_ENDPOINTS["daily_list"], http_client, payload=payload, headers=HEADERS["default"])
     if daily_response and daily_response.get("code") == 200:
@@ -155,39 +130,18 @@ async def check_daily_tasks(session_data, http_client, username):
         for task in daily_tasks:
             assignment_id = task['assignmentId']
             if not task.get('done', False):
-                # Melakukan preflight OPTIONS request sebelum mengerjakan tugas daily login
-                await make_request(API_ENDPOINTS["daily_do"], http_client, method="OPTIONS", headers=HEADERS["options"])
-                logging.info(f"Performing daily login task: {assignment_id} - {task['title']}")
-                task_payload = {
-                    "assignmentId": assignment_id,
-                    "data": session_data["data"],
-                    "hash": session_data["hash"]
-                }
+                logging.info(f"Performing daily task: {assignment_id} - {task['title']}")
+                task_payload = {"assignmentId": assignment_id, "data": session_data["data"], "hash": session_data["hash"]}
                 task_response = await make_request(API_ENDPOINTS["daily_do"], http_client, payload=task_payload, headers=HEADERS["default"])
                 if task_response and task_response.get('code') == 200:
-                    logging.info(f"Daily login task {assignment_id} completed successfully.")
-                    # Memastikan tugas sudah selesai dengan memeriksa ulang status tugas
-                    daily_check_response = await make_request(API_ENDPOINTS["daily_list"], http_client, payload=payload, headers=HEADERS["default"])
-                    if daily_check_response and daily_check_response.get("code") == 200:
-                        updated_tasks = daily_check_response.get('data', [])
-                        for updated_task in updated_tasks:
-                            if updated_task['assignmentId'] == assignment_id and updated_task.get('done', False):
-                                logging.info(f"Task {assignment_id} is confirmed completed.")
-                    # Menampilkan balance rewardValue setelah daily login
-                    user_info = await get_user_info(session_data, http_client)
-                    if user_info:
-                        reward_value = user_info.get('rewardValue', '0')
-                        logging.info(f"User {username} has a reward value of {reward_value} tBOL (different from blockchain balance).")
+                    logging.info(f"Task {assignment_id} completed successfully.")
                 else:
-                    logging.error(f"Failed to complete daily login task {assignment_id}. Response: {task_response}")
+                    logging.error(f"Failed to complete task {assignment_id}. Response: {task_response}")
                 await asyncio.sleep(5)
             else:
-                logging.info(f"Daily login task {assignment_id} already completed.")
+                logging.info(f"Task {assignment_id} already completed.")
     else:
         logging.error("Failed to fetch tasks from daily list.")
-
-    # Melakukan preflight OPTIONS request sebelum repeat_assignment
-    await make_request(API_ENDPOINTS["repeat_assignment"], http_client, method="OPTIONS", headers=HEADERS["options"])
 
     repeat_response = await make_request(API_ENDPOINTS["repeat_assignment"], http_client, payload=payload, headers=HEADERS["default"])
     if repeat_response and repeat_response.get("code") == 200:
@@ -195,14 +149,8 @@ async def check_daily_tasks(session_data, http_client, username):
         for task in repeat_tasks:
             assignment_id = task['assignmentId']
             if not task.get('done', False):
-                # Melakukan preflight OPTIONS request sebelum mengerjakan tugas
-                await make_request(API_ENDPOINTS["daily_do"], http_client, method="OPTIONS", headers=HEADERS["options"])
                 logging.info(f"Performing repeat assignment task: {assignment_id} - {task['title']}")
-                task_payload = {
-                    "assignmentId": assignment_id,
-                    "data": session_data["data"],
-                    "hash": session_data["hash"]
-                }
+                task_payload = {"assignmentId": assignment_id, "data": session_data["data"], "hash": session_data["hash"]}
                 task_response = await make_request(API_ENDPOINTS["daily_do"], http_client, payload=task_payload, headers=HEADERS["default"])
                 if task_response and task_response.get('code') == 200:
                     logging.info(f"Repeat assignment task {assignment_id} completed successfully.")
@@ -217,10 +165,6 @@ async def check_daily_tasks(session_data, http_client, username):
 async def perform_task(session_data, http_client, username):
     logging.info(f"Fetching regular tasks for user: {username}")
     payload = {"data": session_data["data"], "hash": session_data["hash"]}
-
-    # Melakukan preflight OPTIONS request sebelum assignment_list
-    await make_request(API_ENDPOINTS["assignment_list"], http_client, method="OPTIONS", headers=HEADERS["options"])
-
     task_data = await make_request(API_ENDPOINTS["assignment_list"], http_client, payload=payload, headers=HEADERS["default"])
     if task_data and task_data.get("code") == 200:
         tasks = task_data.get('data', [])
@@ -228,8 +172,6 @@ async def perform_task(session_data, http_client, username):
             assignment_name = task.get('title', 'Unnamed Task')
             assignment_id = task['assignmentId']
             if not task.get('done', False) and "join tg channel" not in assignment_name.lower():
-                # Melakukan preflight OPTIONS request sebelum mengerjakan tugas
-                await make_request(API_ENDPOINTS["perform_task"], http_client, method="OPTIONS", headers=HEADERS["options"])
                 logging.info(f"Performing task {assignment_id} - {assignment_name}")
                 task_payload = {"assignmentId": assignment_id, "data": session_data["data"], "hash": session_data["hash"]}
                 task_response = await make_request(API_ENDPOINTS["perform_task"], http_client, payload=task_payload, headers=HEADERS["default"])
@@ -331,21 +273,10 @@ async def process_session(session_data, http_client):
     user_info = json.loads(urllib.parse.unquote(session_data["user"]))
     username = user_info.get("username", "Unknown")
     logging.info(f"Processing session for user: {username}")
-    await visit_rum(http_client)  # Menjalankan RUM di awal untuk menghindari error 500
+    await visit_rum(http_client)
     await check_daily_tasks(session_data, http_client, username)
     await perform_task(session_data, http_client, username)
     await check_balance_and_stake(session_data, username, http_client)
-
-def time_until_midnight_utc():
-    now = datetime.utcnow()
-    midnight_utc = (now + timedelta(days=1)).replace(hour=0, minute=1, second=0, microsecond=0)
-    return (midnight_utc - now).total_seconds()
-
-def format_seconds_to_hms(seconds):
-    hours = int(seconds) // 3600
-    minutes = (int(seconds) % 3600) // 60
-    seconds = int(seconds) % 60
-    return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
 
 async def main():
     while True:
@@ -354,10 +285,24 @@ async def main():
             for session_data in session_data_list:
                 await process_session(session_data, http_client)
                 await asyncio.sleep(5)
-        seconds_until_midnight = time_until_midnight_utc()
-        countdown = format_seconds_to_hms(seconds_until_midnight)
-        logging.info(f"Waiting {countdown} until 00:01 UTC to restart...")
-        await asyncio.sleep(seconds_until_midnight)
+
+        seconds_until_next_execution = 4 * 3600  # 4 hours
+        await dynamic_countdown(seconds_until_next_execution)
+
+async def dynamic_countdown(total_seconds):
+    while total_seconds > 0:
+        countdown = format_seconds_to_hms(total_seconds)
+        sys.stdout.write(f"\rWaiting until next execution: {countdown}")
+        sys.stdout.flush()
+        await asyncio.sleep(1)
+        total_seconds -= 1
+    sys.stdout.write("\n")
+
+def format_seconds_to_hms(seconds):
+    hours = int(seconds) // 3600
+    minutes = (int(seconds) % 3600) // 60
+    seconds = int(seconds) % 60
+    return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
 
 if __name__ == "__main__":
     try:
